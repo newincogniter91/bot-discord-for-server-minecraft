@@ -122,10 +122,10 @@ To start the bot automatically when the PC boots:
 
 ### Option A: Use the Included PowerShell File
 
-The `start-bot.ps1` file already contains a script that starts the bot. You can create a shortcut in the Windows Startup folder:
+The `start-bot.vbs` file already contains a script that starts the bot. You can create a shortcut in the Windows Startup folder:
 
 1. Press Windows + R, type `shell:startup`, and press Enter
-2. Create a new shortcut to `start-bot.ps1`
+2. Create a new shortcut to `start-bot.vbs`
 
 ### Option B: Use Task Scheduler
 
