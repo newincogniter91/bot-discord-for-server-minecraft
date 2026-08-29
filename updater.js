@@ -11,8 +11,10 @@
 //   3. extract it into a temporary folder
 //   4. start the new .exe once (the first run may require admin rights)
 //      to generate its default files, then stop it
-//   5. copy worlds/, permissions.json, server.properties, and
-//      allowlist.json from the old installation to the new one
+//   5. copy worlds/, permissions.json, server.properties,
+//      allowlist.json, resource_packs/, behavior_packs/, and the
+//      world_resource_packs.json / world_behavior_packs.json manifests
+//      (installed mods/texture packs) from the old installation to the new one
 //   6. move the new folder into place and delete the old one
 //   7. restart the server if it was running before the update
 //

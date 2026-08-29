@@ -146,6 +146,7 @@ The `start-bot.vbs` file already contains a script that starts the bot. You can 
 
 - `!start` — Start the public server
 - `!status` — Show the public server status
+- `!version` — Show the public server's installed version
 - `!ip` — Show the public IP and connection port
 
 ### Private Commands (owner only)
@@ -153,6 +154,7 @@ The `start-bot.vbs` file already contains a script that starts the bot. You can 
 - `!startpriv` — Start the private server
 - `!stoppriv` — Stop the private server
 - `!statuspriv` — Show the private server status
+- `!versionpriv` — Show the private server's installed version
 - `!ippriv` — Show the private IP and connection port
 
 ## Automatic Features
@@ -174,7 +176,7 @@ Every day between 02:00 and 05:00, the bot checks whether a new Bedrock server v
 3. It saves the world and stops the server
 4. It downloads the new version
 5. It extracts and configures it
-6. It copies important data from the old version (world, permissions, etc.)
+6. It copies important data from the old version (world, permissions, resource packs/mods, etc.)
 7. It deletes the old version
 8. It restarts the server if it was running before
 

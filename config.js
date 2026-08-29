@@ -25,7 +25,11 @@ module.exports = {
         "worlds",
         "permissions.json",
         "server.properties",
-        "allowlist.json"
+        "allowlist.json",
+        "resource_packs",
+        "behavior_packs",
+        "world_resource_packs.json",
+        "world_behavior_packs.json"
     ],
 
     // Time window for nightly checks/updates (24-hour local PC time)

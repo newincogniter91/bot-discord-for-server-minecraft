@@ -14,6 +14,13 @@ const ServerManager = require("./serverManager");
 const state = require("./state");
 const { reconcileOnStartup } = require("./reconcile");
 const { startUpdateScheduler } = require("./updateScheduler");
+const { findVersionFolder, extractVersionFromFolderName } = require("./serverFolder");
+
+function getInstalledVersion(rootDir) {
+    const versionFolder = findVersionFolder(rootDir);
+    if (!versionFolder) return null;
+    return extractVersionFromFolderName(versionFolder);
+}
 
 //------------------------------------------------------
 // UTILS
@@ -146,6 +153,11 @@ client.on("messageCreate", async msg => {
         if (msg.content === "!status")
             msg.reply(publicManager.status());
 
+        if (msg.content === "!version") {
+            const version = getInstalledVersion(PUBLIC_SERVER_ROOT);
+            msg.reply(version ? `Public server version: ${version}` : "No installation found for the public server.");
+        }
+
         if (msg.content === "!ip") {
             if (!publicManager.isRunning()) return msg.reply("Server is offline.");
             const ip = await getPublicIP();
@@ -172,6 +184,11 @@ client.on("messageCreate", async msg => {
 
     if (msg.content === "!statuspriv")
         msg.reply(privateManager.status());
+
+    if (msg.content === "!versionpriv") {
+        const version = getInstalledVersion(PRIVATE_SERVER_ROOT);
+        msg.reply(version ? `Private server version: ${version}` : "No installation found for the private server.");
+    }
 
     if (msg.content === "!ippriv") {
         if (!privateManager.isRunning()) return msg.reply("Server is offline.");
