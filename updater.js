@@ -33,6 +33,29 @@ const {
 const { findVersionFolder, extractVersionFromFolderName } = require("./serverFolder");
 const { runPowerShell } = require("./processDiscovery");
 
+/**
+ * Like fsp.rm(path, { recursive: true, force: true }), but retries on
+ * EBUSY/EPERM/ENOTEMPTY. On Windows, LevelDB files inside worlds/ (e.g.
+ * MANIFEST-*) can stay locked for a moment after the owning process
+ * closes them or after a preceding fs.cp read, so an immediate rm can
+ * fail even though the lock releases within a second or two.
+ */
+async function rmWithRetry(targetPath, { retries = 5, delayMs = 1000 } = {}) {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+            await fsp.rm(targetPath, { recursive: true, force: true });
+            return;
+        } catch (err) {
+            const retryable = err && (err.code === "EBUSY" || err.code === "EPERM" || err.code === "ENOTEMPTY");
+            if (!retryable || attempt === retries) {
+                throw err;
+            }
+            console.warn(` rm ${targetPath} failed (${err.code}), retry ${attempt}/${retries} in ${delayMs}ms...`);
+            await new Promise(r => setTimeout(r, delayMs));
+        }
+    }
+}
+
 /** Query the official Mojang API and return { version, url } for Windows. */
 async function fetchLatestVersion() {
     const res = await fetch(VERSION_API_URL);
@@ -115,7 +138,7 @@ async function copyPreservedFiles(oldVersionFolder, newVersionFolder) {
         }
 
         // Remove the generated default counterpart from the new folder, if present
-        await fsp.rm(dest, { recursive: true, force: true });
+        await rmWithRetry(dest);
         await fsp.cp(src, dest, { recursive: true });
         console.log(` Copied ${item} to the new installation.`);
     }
@@ -169,7 +192,7 @@ async function updateServer({ rootDir, serverManager, newVersion, downloadUrl, n
 
     // Final destination inside the server root
     const newVersionFolder = path.join(rootDir, `bedrock-server-${newVersion}`);
-    await fsp.rm(newVersionFolder, { recursive: true, force: true });
+    await rmWithRetry(newVersionFolder);
     await fsp.rename(extractDir, newVersionFolder);
 
     // 5. first run to generate the default configuration, then stop
@@ -189,7 +212,7 @@ async function updateServer({ rootDir, serverManager, newVersion, downloadUrl, n
 
     // 7. remove the old folder ONLY after the new one is ready
     if (oldVersionFolder && oldVersionFolder !== newVersionFolder) {
-        await fsp.rm(oldVersionFolder, { recursive: true, force: true });
+        await rmWithRetry(oldVersionFolder);
         console.log(` Removed old installation: ${oldVersionFolder}`);
     }
 
