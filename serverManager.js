@@ -40,6 +40,7 @@ class ServerManager {
         this.playersOnline = 0;
         this.emptyTimeout = null;
         this.startedBy = null;        // "discord" | "external" | null
+        this.updateLocked = false;    // true while a manual "!update" is running
     }
 
     /** True when the server is running, whether managed or adopted. */
@@ -77,11 +78,24 @@ class ServerManager {
         }
     }
 
+    /** Prevent manual starts while a "!update"/"!updatepriv" run is in progress. */
+    lockForUpdate() {
+        this.updateLocked = true;
+    }
+
+    unlockAfterUpdate() {
+        this.updateLocked = false;
+    }
+
     /**
     * Start the server through the .bat file in the versioned folder.
     * Returns { ok: bool, message: string }.
      */
     start() {
+        if (this.updateLocked) {
+            return { ok: false, message: `Server ${this.label} is being updated; please wait.` };
+        }
+
         if (this.isRunning()) {
             return { ok: false, message: `Server ${this.label} is already running.` };
         }

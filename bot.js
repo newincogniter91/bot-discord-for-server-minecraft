@@ -14,6 +14,7 @@ const ServerManager = require("./serverManager");
 const state = require("./state");
 const { reconcileOnStartup } = require("./reconcile");
 const { startUpdateScheduler } = require("./updateScheduler");
+const { fetchLatestVersion, updateServer } = require("./updater");
 const { findVersionFolder, extractVersionFromFolderName } = require("./serverFolder");
 
 function getInstalledVersion(rootDir) {
@@ -135,6 +136,71 @@ client.on("ready", async () => {
 });
 
 //------------------------------------------------------
+// MANUAL UPDATE (!update / !updatepriv)
+//------------------------------------------------------
+
+/**
+ * Checks for a newer version and, if found and the server is idle,
+ * locks it (blocking manual starts), updates it, then unlocks it.
+ * If the server is currently in use, the update is cancelled.
+ */
+async function handleManualUpdate(msg, { rootDir, manager, label }) {
+    let reply;
+    try {
+        reply = await msg.reply(` Checking for updates for the ${label} server...`);
+    } catch {
+        reply = null;
+    }
+    const send = text => reply ? reply.edit(text) : msg.channel.send(text);
+
+    let latest;
+    try {
+        latest = await fetchLatestVersion();
+    } catch (err) {
+        return send(` Version check failed: ${err.message}`);
+    }
+
+    if (!latest.version) {
+        return send(" Unable to determine the latest available version.");
+    }
+
+    const installedVersion = getInstalledVersion(rootDir);
+    if (installedVersion === latest.version) {
+        return send(` The ${label} server is already up to date (v${installedVersion}).`);
+    }
+
+    if (manager.isRunning()) {
+        return send(
+            ` Update to v${latest.version} available for the ${label} server, but it is currently in use.` +
+            ` Stop it first, then run this command again.`
+        );
+    }
+
+    await send(` Updating the ${label} server from v${installedVersion || "?"} to v${latest.version}. The server is locked and cannot be started until this finishes...`);
+
+    manager.lockForUpdate();
+    try {
+        const result = await updateServer({
+            rootDir,
+            serverManager: manager,
+            newVersion: latest.version,
+            downloadUrl: latest.url
+        });
+
+        if (result.updated) {
+            await send(` Server ${label} updated to version ${result.to}.`);
+        } else {
+            await send(` Server ${label}: no update needed (${result.reason}).`);
+        }
+    } catch (err) {
+        console.error(`Manual update failed for ${label}:`, err);
+        await send(` Update failed for the ${label} server: ${err.message}`);
+    } finally {
+        manager.unlockAfterUpdate();
+    }
+}
+
+//------------------------------------------------------
 // DISCORD COMMANDS
 //------------------------------------------------------
 
@@ -162,6 +228,10 @@ client.on("messageCreate", async msg => {
             if (!publicManager.isRunning()) return msg.reply("Server is offline.");
             const ip = await getPublicIP();
             msg.reply(`Public IP: ${ip}\nPort: ${GROUP_SERVER_PORT}`);
+        }
+
+        if (msg.content === "!update") {
+            await handleManualUpdate(msg, { rootDir: PUBLIC_SERVER_ROOT, manager: publicManager, label: "public" });
         }
 
         return;
@@ -194,6 +264,10 @@ client.on("messageCreate", async msg => {
         if (!privateManager.isRunning()) return msg.reply("Server is offline.");
         const ip = await getPublicIP();
         msg.reply(`Private IP: ${ip}\nPort: ${PRIVATE_SERVER_PORT}`);
+    }
+
+    if (msg.content === "!updatepriv") {
+        await handleManualUpdate(msg, { rootDir: PRIVATE_SERVER_ROOT, manager: privateManager, label: "private" });
     }
 });
 

@@ -30,7 +30,8 @@ const {
     VERSION_API_URL,
     UPDATE_TMP_DIR,
     FILES_TO_PRESERVE,
-    UPDATE_KICK_WARNING_SECONDS
+    UPDATE_KICK_WARNING_SECONDS,
+    USE_PREVIEW
 } = require("./config");
 const { findVersionFolder, extractVersionFromFolderName } = require("./serverFolder");
 const { runPowerShell } = require("./processDiscovery");
@@ -70,9 +71,10 @@ async function fetchLatestVersion() {
         throw new Error("Unexpected Mojang API response format");
     }
 
-    const winLink = links.find(l => l.downloadType === "serverBedrockWindows");
+    const downloadType = USE_PREVIEW ? "serverBedrockPreviewWindows" : "serverBedrockWindows";
+    const winLink = links.find(l => l.downloadType === downloadType);
     if (!winLink) {
-        throw new Error("Windows download link not found in the API response");
+        throw new Error(`Windows download link not found in the API response (${downloadType})`);
     }
 
     const match = winLink.downloadUrl.match(/bedrock-server-(.+?)\.zip$/i);

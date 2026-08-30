@@ -39,6 +39,13 @@ module.exports = {
     // Official Mojang endpoint used by minecraft.net/.../download/server/bedrock
     VERSION_API_URL: "https://net-secondary.web.minecraft-services.net/api/v1.0/download/links",
 
+    // If true, the bot downloads/updates the Bedrock PREVIEW server
+    // instead of the stable one. Note: to actually join a preview
+    // server, players need the "Minecraft Preview" app/beta on their
+    // client (not the regular Minecraft app) — the two are not
+    // cross-compatible with each other's stable counterpart.
+    USE_PREVIEW: false,
+
     // Minutes of inactivity (0 players) before automatic shutdown
     EMPTY_SHUTDOWN_MINUTES: 5,
 
