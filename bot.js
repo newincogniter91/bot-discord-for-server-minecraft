@@ -7,7 +7,8 @@ const {
     GROUP_SERVER_PORT,
     PRIVATE_SERVER_PORT,
     PUBLIC_SERVER_ROOT,
-    PRIVATE_SERVER_ROOT
+    PRIVATE_SERVER_ROOT,
+    USE_PREVIEW
 } = require("./config");
 
 const ServerManager = require("./serverManager");
@@ -77,6 +78,27 @@ function saveFullState() {
     state.save(currentState);
 }
 
+// Detect a stable <-> preview channel change (config.js USE_PREVIEW edited
+// by hand since the last run). Version numbers between the two channels
+// are not directly comparable, so this just flags each server for a
+// forced re-download on the next nightly update pass rather than
+// comparing version strings here.
+(function detectChannelSwitch() {
+    const wantedMode = USE_PREVIEW ? "preview" : "stable";
+    for (const key of ["public", "private"]) {
+        const installedMode = currentState[key].installedMode;
+        if (installedMode && installedMode !== wantedMode) {
+            console.log(` Channel switch detected for ${key}: ${installedMode} -> ${wantedMode}. Will re-download on the next nightly update.`);
+            currentState[key].pendingChannelSwitch = true;
+        } else if (!installedMode) {
+            // First run with this field: assume the currently installed
+            // build matches whatever channel is configured right now.
+            currentState[key].installedMode = wantedMode;
+        }
+    }
+    saveFullState();
+})();
+
 //------------------------------------------------------
 // SERVER MANAGERS
 //------------------------------------------------------
@@ -144,7 +166,7 @@ client.on("ready", async () => {
  * locks it (blocking manual starts), updates it, then unlocks it.
  * If the server is currently in use, the update is cancelled.
  */
-async function handleManualUpdate(msg, { rootDir, manager, label }) {
+async function handleManualUpdate(msg, { rootDir, manager, label, stateKey }) {
     let reply;
     try {
         reply = await msg.reply(` Checking for updates for the ${label} server...`);
@@ -164,8 +186,9 @@ async function handleManualUpdate(msg, { rootDir, manager, label }) {
         return send(" Unable to determine the latest available version.");
     }
 
+    const forceUpdate = !!currentState[stateKey].pendingChannelSwitch;
     const installedVersion = getInstalledVersion(rootDir);
-    if (installedVersion === latest.version) {
+    if (installedVersion === latest.version && !forceUpdate) {
         return send(` The ${label} server is already up to date (v${installedVersion}).`);
     }
 
@@ -184,11 +207,19 @@ async function handleManualUpdate(msg, { rootDir, manager, label }) {
             rootDir,
             serverManager: manager,
             newVersion: latest.version,
-            downloadUrl: latest.url
+            downloadUrl: latest.url,
+            forceUpdate
         });
 
+        if (result.updated || forceUpdate) {
+            currentState[stateKey].installedMode = result.mode;
+            currentState[stateKey].pendingChannelSwitch = false;
+            saveFullState();
+        }
+
         if (result.updated) {
-            await send(` Server ${label} updated to version ${result.to}.`);
+            const switchNote = forceUpdate ? ` (channel switched to ${result.mode})` : "";
+            await send(` Server ${label} updated to version ${result.to}${switchNote}.`);
         } else {
             await send(` Server ${label}: no update needed (${result.reason}).`);
         }
@@ -231,7 +262,7 @@ client.on("messageCreate", async msg => {
         }
 
         if (msg.content === "!update") {
-            await handleManualUpdate(msg, { rootDir: PUBLIC_SERVER_ROOT, manager: publicManager, label: "public" });
+            await handleManualUpdate(msg, { rootDir: PUBLIC_SERVER_ROOT, manager: publicManager, label: "public", stateKey: "public" });
         }
 
         return;
@@ -267,7 +298,7 @@ client.on("messageCreate", async msg => {
     }
 
     if (msg.content === "!updatepriv") {
-        await handleManualUpdate(msg, { rootDir: PRIVATE_SERVER_ROOT, manager: privateManager, label: "private" });
+        await handleManualUpdate(msg, { rootDir: PRIVATE_SERVER_ROOT, manager: privateManager, label: "private", stateKey: "private" });
     }
 });
 

@@ -156,12 +156,17 @@ async function copyPreservedFiles(oldVersionFolder, newVersionFolder) {
  * `newVersion` and `downloadUrl` are already resolved by the caller,
  * so the version check runs only once for both servers.
  */
-async function updateServer({ rootDir, serverManager, newVersion, downloadUrl, notify }) {
+async function updateServer({ rootDir, serverManager, newVersion, downloadUrl, notify, forceUpdate = false }) {
     const oldVersionFolder = findVersionFolder(rootDir);
     const oldVersion = oldVersionFolder ? extractVersionFromFolderName(oldVersionFolder) : null;
+    const mode = USE_PREVIEW ? "preview" : "stable";
 
-    if (oldVersion === newVersion) {
-        return { updated: false, reason: "already up to date" };
+    // forceUpdate is set when the stable/preview channel changed since the
+    // last install: version numbers between the two channels are not
+    // comparable (preview is usually numerically ahead), so an equal or even
+    // "lower" version number must still trigger a re-download in that case.
+    if (oldVersion === newVersion && !forceUpdate) {
+        return { updated: false, reason: "already up to date", mode };
     }
 
     const wasRunning = serverManager.isRunning();
@@ -228,7 +233,7 @@ async function updateServer({ rootDir, serverManager, newVersion, downloadUrl, n
         serverManager.start();
     }
 
-    return { updated: true, from: oldVersion, to: newVersion };
+    return { updated: true, from: oldVersion, to: newVersion, mode };
 }
 
 function waitUntilStopped(serverManager, timeoutMs) {

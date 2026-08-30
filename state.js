@@ -6,8 +6,9 @@
 //
 // state.json file structure:
 // {
-//   "public":  { "running": bool, "pid": number|null, "startedBy": "discord"|"external"|null },
-//   "private": { "running": bool, "pid": number|null, "startedBy": "discord"|"external"|null },
+//   "public":  { "running": bool, "pid": number|null, "startedBy": "discord"|"external"|null,
+//                "installedMode": "stable"|"preview"|null, "pendingChannelSwitch": bool },
+//   "private": { same shape as "public" },
 //   "lastUpdateCheck": "ISO date string" | null
 // }
 
@@ -15,8 +16,8 @@ const fs = require("fs");
 const { STATE_FILE } = require("./config");
 
 const DEFAULT_STATE = {
-    public: { running: false, pid: null, startedBy: null },
-    private: { running: false, pid: null, startedBy: null },
+    public: { running: false, pid: null, startedBy: null, installedMode: null, pendingChannelSwitch: false },
+    private: { running: false, pid: null, startedBy: null, installedMode: null, pendingChannelSwitch: false },
     lastUpdateCheck: null
 };
 
