@@ -2,7 +2,7 @@
 // UPDATE SCHEDULER
 // ============================================================
 // Once per day during the configured time window, check for a new
-// version and update both servers in sequence (public, then private).
+// version and update every configured server in sequence.
 //
 // The "once per day" check is enforced by comparing the last-check
 // date (YYYY-MM-DD) stored in state.json.
@@ -28,13 +28,11 @@ function isInsideUpdateWindow() {
  * @param {object} opts
  * @param {object} opts.state - current state (from state.js load())
  * @param {function} opts.saveState - function used to save updated state
- * @param {object} opts.publicManager - Public ServerManager
- * @param {object} opts.privateManager - Private ServerManager
- * @param {string} opts.publicRoot
- * @param {string} opts.privateRoot
+ * @param {Array<{root: string, manager: object, key: string}>} opts.targets
+ *   - one entry per configured server
  * @param {function} opts.notify - async(message) -> send a DM/message to the owner
  */
-function startUpdateScheduler({ state, saveState, publicManager, privateManager, publicRoot, privateRoot, notify }) {
+function startUpdateScheduler({ state, saveState, targets, notify }) {
     async function checkAndUpdate() {
         if (!isInsideUpdateWindow()) return;
         if (state.lastUpdateCheck === todayString()) return; // Already checked today
@@ -55,11 +53,6 @@ function startUpdateScheduler({ state, saveState, publicManager, privateManager,
             console.error(" Unable to determine the latest version.");
             return;
         }
-
-        const targets = [
-            { root: publicRoot, manager: publicManager, key: "public" },
-            { root: privateRoot, manager: privateManager, key: "private" }
-        ];
 
         for (const { root, manager, key } of targets) {
             // A channel switch (stable <-> preview) means version numbers

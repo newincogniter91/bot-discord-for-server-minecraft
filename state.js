@@ -1,40 +1,49 @@
 // ============================================================
 // STATE PERSISTENCE
 // ============================================================
-// Stores both servers' state on disk so the bot can read it again
-// after a restart (crash, PC restart, etc.).
+// Stores every configured server's state on disk so the bot can
+// read it again after a restart (crash, PC restart, etc.).
 //
 // state.json file structure:
 // {
-//   "public":  { "running": bool, "pid": number|null, "startedBy": "discord"|"external"|null,
-//                "installedMode": "stable"|"preview"|null, "pendingChannelSwitch": bool },
-//   "private": { same shape as "public" },
+//   "<server.key>": { "running": bool, "pid": number|null, "startedBy": "discord"|"external"|null,
+//                      "installedMode": "stable"|"preview"|null, "pendingChannelSwitch": bool },
+//   ... one entry per server configured in config.js SERVERS ...
 //   "lastUpdateCheck": "ISO date string" | null
 // }
 
 const fs = require("fs");
-const { STATE_FILE } = require("./config");
+const { STATE_FILE, SERVERS } = require("./config");
 
-const DEFAULT_STATE = {
-    public: { running: false, pid: null, startedBy: null, installedMode: null, pendingChannelSwitch: false },
-    private: { running: false, pid: null, startedBy: null, installedMode: null, pendingChannelSwitch: false },
-    lastUpdateCheck: null
-};
+function defaultServerState() {
+    return { running: false, pid: null, startedBy: null, installedMode: null, pendingChannelSwitch: false };
+}
+
+function buildDefaultState() {
+    const defaults = { lastUpdateCheck: null };
+    for (const server of SERVERS) {
+        defaults[server.key] = defaultServerState();
+    }
+    return defaults;
+}
 
 function load() {
+    const defaults = buildDefaultState();
     try {
         const raw = fs.readFileSync(STATE_FILE, "utf8");
         const parsed = JSON.parse(raw);
-        // Merge with defaults to tolerate fields missing from older state files
-        return {
-            ...DEFAULT_STATE,
-            ...parsed,
-            public: { ...DEFAULT_STATE.public, ...(parsed.public || {}) },
-            private: { ...DEFAULT_STATE.private, ...(parsed.private || {}) }
-        };
+
+        // Merge with defaults to tolerate fields missing from older
+        // state files, and to add an entry for any server that was
+        // just added to config.js SERVERS.
+        const merged = { ...defaults, ...parsed };
+        for (const server of SERVERS) {
+            merged[server.key] = { ...defaults[server.key], ...(parsed[server.key] || {}) };
+        }
+        return merged;
     } catch (err) {
         // Missing or corrupt file: start from a clean state
-        return { ...DEFAULT_STATE };
+        return defaults;
     }
 }
 
@@ -46,4 +55,4 @@ function save(state) {
     }
 }
 
-module.exports = { load, save, DEFAULT_STATE };
+module.exports = { load, save, buildDefaultState };

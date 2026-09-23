@@ -9,13 +9,47 @@ module.exports = {
     TOKEN: "<DISCORD_BOT_TOKEN>",
     OWNER_ID: "<DISCORD_OWNER_ID>",
 
-    GROUP_SERVER_PORT: 19132,
-    PRIVATE_SERVER_PORT: 19133,
-
-    // Container folder for each server: it must contain exactly one
-    // bedrock-server-<version> subfolder, found dynamically.
-    PUBLIC_SERVER_ROOT: "<PUBLIC_SERVER_ROOT_PATH>\\bedrock_server",
-    PRIVATE_SERVER_ROOT: "<PRIVATE_SERVER_ROOT_PATH>\\privato",
+    // ------------------------------------------------------------
+    // MINECRAFT SERVERS
+    // ------------------------------------------------------------
+    // One entry per Minecraft Bedrock server. Each entry is tied to
+    // exactly one Discord server (guild): the bot answers the same
+    // set of commands (!start, !stop, !status, !version, !ip,
+    // !update) in every guild, each acting only on its own server.
+    //
+    // - key:      short unique identifier, used internally and in
+    //             state.json (letters/numbers, no spaces)
+    // - label:    readable name used in Discord replies
+    // - guildId:  ID of the Discord server this entry controls
+    //             (Discord: enable Developer Mode in Settings >
+    //             Advanced, then right-click the server icon in the
+    //             server list and choose "Copy Server ID")
+    // - rootDir:  container folder for this server; it must contain
+    //             exactly one bedrock-server-<version> subfolder,
+    //             found dynamically
+    // - port:     port this server listens on (must be unique per
+    //             server if they run on the same PC)
+    //
+    // Add as many entries as you want; the bot builds one manager and
+    // one command set per entry automatically, no other code change
+    // needed.
+    SERVERS: [
+        {
+            key: "server1",
+            label: "Server 1",
+            guildId: "<DISCORD_GUILD_ID_1>",
+            rootDir: "<SERVER1_ROOT_PATH>\\bedrock_server",
+            port: 19132
+        },
+        {
+            key: "server2",
+            label: "Server 2",
+            guildId: "<DISCORD_GUILD_ID_2>",
+            rootDir: "<SERVER2_ROOT_PATH>\\bedrock_server",
+            port: 19133
+        }
+        // , { key: "server3", label: "Server 3", guildId: "<DISCORD_GUILD_ID_3>", rootDir: "<SERVER3_ROOT_PATH>\\bedrock_server", port: 19134 }
+    ],
 
     // Temporary working folder for downloads and extraction during updates
     UPDATE_TMP_DIR: "<SERVER_ROOT_PATH>\\_update_tmp",

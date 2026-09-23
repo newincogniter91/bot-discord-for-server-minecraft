@@ -19,7 +19,7 @@ const { EMPTY_SHUTDOWN_MINUTES } = require("./config");
 class ServerManager {
     /**
      * @param {object} opts
-    * @param {string} opts.name - "public" | "private", used for logs and state
+    * @param {string} opts.name - server key (from config.js SERVERS), used for logs and state
     * @param {string} opts.label - readable label for Discord messages
     * @param {string} opts.rootDir - container folder (contains bedrock-server-*)
      * @param {number} opts.port

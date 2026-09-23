@@ -1,15 +1,7 @@
 const { Client, GatewayIntentBits, Partials } = require("discord.js");
 const https = require("https");
 
-const {
-    TOKEN,
-    OWNER_ID,
-    GROUP_SERVER_PORT,
-    PRIVATE_SERVER_PORT,
-    PUBLIC_SERVER_ROOT,
-    PRIVATE_SERVER_ROOT,
-    USE_PREVIEW
-} = require("./config");
+const { TOKEN, OWNER_ID, SERVERS, USE_PREVIEW } = require("./config");
 
 const ServerManager = require("./serverManager");
 const state = require("./state");
@@ -85,7 +77,8 @@ function saveFullState() {
 // comparing version strings here.
 (function detectChannelSwitch() {
     const wantedMode = USE_PREVIEW ? "preview" : "stable";
-    for (const key of ["public", "private"]) {
+    for (const server of SERVERS) {
+        const key = server.key;
         const installedMode = currentState[key].installedMode;
         if (installedMode && installedMode !== wantedMode) {
             console.log(` Channel switch detected for ${key}: ${installedMode} -> ${wantedMode}. Will re-download on the next nightly update.`);
@@ -102,28 +95,29 @@ function saveFullState() {
 //------------------------------------------------------
 // SERVER MANAGERS
 //------------------------------------------------------
+// One ServerManager per entry in config.js SERVERS, keyed by
+// server.key. Adding a server to config.js is enough: the bot
+// builds its manager and its command set automatically here,
+// no other code change is needed.
 
 async function handleCrash(name, label) {
     await notifyOwner(client, ` Server ${label} crashed. Restarting...`);
 }
 
-const publicManager = new ServerManager({
-    name: "public",
-    label: "public",
-    rootDir: PUBLIC_SERVER_ROOT,
-    port: GROUP_SERVER_PORT,
-    onCrash: handleCrash,
-    onStateChange: persistServerState
-});
+const managers = {};
+const serverByGuildId = {};
 
-const privateManager = new ServerManager({
-    name: "private",
-    label: "private",
-    rootDir: PRIVATE_SERVER_ROOT,
-    port: PRIVATE_SERVER_PORT,
-    onCrash: handleCrash,
-    onStateChange: persistServerState
-});
+for (const server of SERVERS) {
+    managers[server.key] = new ServerManager({
+        name: server.key,
+        label: server.label,
+        rootDir: server.rootDir,
+        port: server.port,
+        onCrash: handleCrash,
+        onStateChange: persistServerState
+    });
+    serverByGuildId[server.guildId] = server;
+}
 
 //------------------------------------------------------
 // BOT READY
@@ -135,30 +129,34 @@ client.on("ready", async () => {
     // Reconciliation: find servers already running (started manually
     // in Windows or left running before a bot restart) and adopt them
     // so status/stop commands work immediately.
-    await reconcileOnStartup(publicManager, privateManager, PUBLIC_SERVER_ROOT, PRIVATE_SERVER_ROOT);
+    await reconcileOnStartup(
+        SERVERS.map(server => ({ manager: managers[server.key], rootDir: server.rootDir }))
+    );
     saveFullState();
 
     // Periodically check that adopted processes are still alive
     setInterval(() => {
-        publicManager.checkAdoptedStillAlive();
-        privateManager.checkAdoptedStillAlive();
+        for (const server of SERVERS) {
+            managers[server.key].checkAdoptedStillAlive();
+        }
     }, 60 * 1000);
 
     // Start the nightly update scheduler (checks daily during the
-    // configured window for a new server version).
+    // configured window for a new server version), once per server.
     startUpdateScheduler({
         state: currentState,
         saveState: saveFullState,
-        publicManager,
-        privateManager,
-        publicRoot: PUBLIC_SERVER_ROOT,
-        privateRoot: PRIVATE_SERVER_ROOT,
+        targets: SERVERS.map(server => ({
+            root: server.rootDir,
+            manager: managers[server.key],
+            key: server.key
+        })),
         notify: msg => notifyOwner(client, msg)
     });
 });
 
 //------------------------------------------------------
-// MANUAL UPDATE (!update / !updatepriv)
+// MANUAL UPDATE (!update)
 //------------------------------------------------------
 
 /**
@@ -234,72 +232,52 @@ async function handleManualUpdate(msg, { rootDir, manager, label, stateKey }) {
 //------------------------------------------------------
 // DISCORD COMMANDS
 //------------------------------------------------------
+// Same command set in every configured Discord server: !start,
+// !stop, !status, !version, !ip, !update. Each Discord server only
+// ever sees and controls its own Minecraft server (looked up by
+// guild ID in config.js SERVERS).
 
-client.on("messageCreate", async msg => {
-
-    // -------------------------
-    // PUBLIC COMMANDS (SERVER)
-    // -------------------------
-    if (msg.guild) {
-
-        if (msg.content === "!start") {
-            const result = publicManager.start();
-            msg.reply(result.message);
-        }
-
-        if (msg.content === "!status")
-            msg.reply(publicManager.status());
-
-        if (msg.content === "!version") {
-            const version = getInstalledVersion(PUBLIC_SERVER_ROOT);
-            msg.reply(version ? `Public server version: ${version}` : "No installation found for the public server.");
-        }
-
-        if (msg.content === "!ip") {
-            if (!publicManager.isRunning()) return msg.reply("Server is offline.");
-            const ip = await getPublicIP();
-            msg.reply(`Public IP: ${ip}\nPort: ${GROUP_SERVER_PORT}`);
-        }
-
-        if (msg.content === "!update") {
-            await handleManualUpdate(msg, { rootDir: PUBLIC_SERVER_ROOT, manager: publicManager, label: "public", stateKey: "public" });
-        }
-
-        return;
-    }
-
-    // -------------------------
-    // PRIVATE COMMANDS (OWNER ONLY)
-    // -------------------------
-    if (msg.author.id !== OWNER_ID) return;
-
-    if (msg.content === "!startpriv") {
-        const result = privateManager.start();
+async function handleServerCommand(msg, server, manager) {
+    if (msg.content === "!start") {
+        const result = manager.start();
         msg.reply(result.message);
     }
 
-    if (msg.content === "!stoppriv") {
-        const result = privateManager.stop({ reason: "owner request" });
-        await msg.reply(result.message);
+    if (msg.content === "!stop") {
+        const result = manager.stop({ reason: "manual request" });
+        msg.reply(result.message);
     }
 
-    if (msg.content === "!statuspriv")
-        msg.reply(privateManager.status());
+    if (msg.content === "!status")
+        msg.reply(manager.status());
 
-    if (msg.content === "!versionpriv") {
-        const version = getInstalledVersion(PRIVATE_SERVER_ROOT);
-        msg.reply(version ? `Private server version: ${version}` : "No installation found for the private server.");
+    if (msg.content === "!version") {
+        const version = getInstalledVersion(server.rootDir);
+        msg.reply(version ? `Server version: ${version}` : "No installation found for this server.");
     }
 
-    if (msg.content === "!ippriv") {
-        if (!privateManager.isRunning()) return msg.reply("Server is offline.");
+    if (msg.content === "!ip") {
+        if (!manager.isRunning()) return msg.reply("Server is offline.");
         const ip = await getPublicIP();
-        msg.reply(`Private IP: ${ip}\nPort: ${PRIVATE_SERVER_PORT}`);
+        msg.reply(`IP: ${ip}\nPort: ${server.port}`);
     }
 
-    if (msg.content === "!updatepriv") {
-        await handleManualUpdate(msg, { rootDir: PRIVATE_SERVER_ROOT, manager: privateManager, label: "private", stateKey: "private" });
+    if (msg.content === "!update") {
+        await handleManualUpdate(msg, { rootDir: server.rootDir, manager, label: server.label, stateKey: server.key });
     }
+}
+
+client.on("messageCreate", async msg => {
+
+    // Only respond inside a configured Discord server, and only to
+    // the one it is mapped to (see SERVERS in config.js). Messages
+    // from unconfigured servers or from DMs are ignored.
+    if (!msg.guild) return;
+
+    const server = serverByGuildId[msg.guild.id];
+    if (!server) return;
+
+    await handleServerCommand(msg, server, managers[server.key]);
 });
 
 //------------------------------------------------------

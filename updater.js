@@ -3,7 +3,7 @@
 // ============================================================
 // Every day, during the 02:00-05:00 window, check for a new Bedrock
 // server version through the official Mojang API and, if available,
-// update each server (public/private):
+// update each server configured in config.js SERVERS:
 //
 //   1. if players are online, warn them in MC chat and Discord,
 //      wait N seconds, then send "stop" (including the save)
