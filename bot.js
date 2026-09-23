@@ -235,7 +235,8 @@ async function handleManualUpdate(msg, { rootDir, manager, label, stateKey }) {
 // Same command set in every configured Discord server: !start,
 // !stop, !status, !version, !ip, !update. Each Discord server only
 // ever sees and controls its own Minecraft server (looked up by
-// guild ID in config.js SERVERS).
+// guild ID in config.js SERVERS). A server marked ownerOnly in
+// config.js only answers OWNER_ID within its guild.
 
 async function handleServerCommand(msg, server, manager) {
     if (msg.content === "!start") {
@@ -276,6 +277,11 @@ client.on("messageCreate", async msg => {
 
     const server = serverByGuildId[msg.guild.id];
     if (!server) return;
+
+    // A server marked ownerOnly (e.g. a private server) only answers
+    // commands from OWNER_ID, even though it lives in its own guild:
+    // everyone else's messages there are silently ignored.
+    if (server.ownerOnly && msg.author.id !== OWNER_ID) return;
 
     await handleServerCommand(msg, server, managers[server.key]);
 });

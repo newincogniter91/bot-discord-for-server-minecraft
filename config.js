@@ -17,18 +17,22 @@ module.exports = {
     // set of commands (!start, !stop, !status, !version, !ip,
     // !update) in every guild, each acting only on its own server.
     //
-    // - key:      short unique identifier, used internally and in
-    //             state.json (letters/numbers, no spaces)
-    // - label:    readable name used in Discord replies
-    // - guildId:  ID of the Discord server this entry controls
-    //             (Discord: enable Developer Mode in Settings >
-    //             Advanced, then right-click the server icon in the
-    //             server list and choose "Copy Server ID")
-    // - rootDir:  container folder for this server; it must contain
-    //             exactly one bedrock-server-<version> subfolder,
-    //             found dynamically
-    // - port:     port this server listens on (must be unique per
-    //             server if they run on the same PC)
+    // - key:        short unique identifier, used internally and in
+    //               state.json (letters/numbers, no spaces)
+    // - label:      readable name used in Discord replies
+    // - guildId:    ID of the Discord server this entry controls
+    //               (Discord: enable Developer Mode in Settings >
+    //               Advanced, then right-click the server icon in the
+    //               server list and choose "Copy Server ID")
+    // - rootDir:    container folder for this server; it must contain
+    //               exactly one bedrock-server-<version> subfolder,
+    //               found dynamically
+    // - port:       port this server listens on (must be unique per
+    //               server if they run on the same PC)
+    // - ownerOnly:  optional, default false. If true, only OWNER_ID
+    //               (above) can run commands for this server, even
+    //               inside its own guild — everyone else's messages
+    //               are ignored. Use this for a private server.
     //
     // Add as many entries as you want; the bot builds one manager and
     // one command set per entry automatically, no other code change
@@ -47,8 +51,16 @@ module.exports = {
             guildId: "<DISCORD_GUILD_ID_2>",
             rootDir: "<SERVER2_ROOT_PATH>\\bedrock_server",
             port: 19133
+        },
+        {
+            key: "privato",
+            label: "Privato",
+            guildId: "<DISCORD_GUILD_ID_PRIVATO>",
+            rootDir: "<PRIVATE_SERVER_ROOT_PATH>\\privato",
+            port: 19134,
+            ownerOnly: true
         }
-        // , { key: "server3", label: "Server 3", guildId: "<DISCORD_GUILD_ID_3>", rootDir: "<SERVER3_ROOT_PATH>\\bedrock_server", port: 19134 }
+        // , { key: "server4", label: "Server 4", guildId: "<DISCORD_GUILD_ID_4>", rootDir: "<SERVER4_ROOT_PATH>\\bedrock_server", port: 19135 }
     ],
 
     // Temporary working folder for downloads and extraction during updates

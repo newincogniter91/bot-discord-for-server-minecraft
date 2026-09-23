@@ -68,7 +68,7 @@ This single bot application is shared by all your Discord servers — you do not
 6. Replace it with your Discord ID. To find it:
    - Enable Developer Mode in Discord (Settings > Advanced > Developer Mode)
    - Right-click your username and select "Copy User ID"
-7. Find the `SERVERS` array. It comes with two example entries:
+7. Find the `SERVERS` array. It comes with three example entries — two normal ones plus a private one:
    ```javascript
    SERVERS: [
        {
@@ -84,15 +84,24 @@ This single bot application is shared by all your Discord servers — you do not
            guildId: "<DISCORD_GUILD_ID_2>",
            rootDir: "<SERVER2_ROOT_PATH>\\bedrock_server",
            port: 19133
+       },
+       {
+           key: "privato",
+           label: "Privato",
+           guildId: "<DISCORD_GUILD_ID_PRIVATO>",
+           rootDir: "<PRIVATE_SERVER_ROOT_PATH>\\privato",
+           port: 19134,
+           ownerOnly: true
        }
    ],
    ```
-   For each Minecraft server you want to manage, add one entry (edit the two examples, delete the ones you don't need, or add more — copy an entry, add a comma, and adjust its values):
+   For each Minecraft server you want to manage, add one entry (edit the examples, delete the ones you don't need, or add more — copy an entry, add a comma, and adjust its values):
    - `key` — a short unique identifier (letters/numbers only, no spaces), used internally and in `state.json`
    - `label` — a readable name, shown in Discord replies (e.g. "Survival", "Creativo")
    - `guildId` — the ID of the Discord server this entry controls (see below how to find it)
    - `rootDir` — the folder from Phase 1 for this server
    - `port` — the port this server listens on (must be different for each server if they run on the same PC)
+   - `ownerOnly` — optional, defaults to `false`. Set it to `true` for a private server: only you (`OWNER_ID`, configured above) will be able to run commands for it, even inside its own Discord server — everyone else's messages there are ignored
 8. Save the file
 
 **To find a Discord server's ID (`guildId`):** with Developer Mode enabled (step 6 above), right-click the server's icon in the server list on the left of Discord and select "Copy Server ID".
@@ -184,7 +193,7 @@ The **same commands** are available in every Discord server configured in `SERVE
 - `!ip` — Show the public IP and connection port
 - `!update` — Check for and apply an update, if the server is idle
 
-A message sent in a Discord server that is not listed in `SERVERS`, or in a DM, is ignored by these commands.
+A message sent in a Discord server that is not listed in `SERVERS`, or in a DM, is ignored by these commands. For an entry marked `ownerOnly: true` (e.g. a private server), only you (`OWNER_ID`) can use these commands — messages from anyone else in that Discord server are ignored, even though the server itself may have other members.
 
 ## Automatic Features
 
@@ -298,7 +307,7 @@ Enjoy!
 
 Before starting, replace the placeholders in the following files with your machine, Discord and bot values.
 
-- `config.js`: `<DISCORD_BOT_TOKEN>`, `<DISCORD_OWNER_ID>`, and inside `SERVERS`, for each server: `<DISCORD_GUILD_ID_N>` and `<SERVERN_ROOT_PATH>` (add/remove entries as needed); also `<SERVER_ROOT_PATH>` for `UPDATE_TMP_DIR`.
+- `config.js`: `<DISCORD_BOT_TOKEN>`, `<DISCORD_OWNER_ID>`, and inside `SERVERS`, for each server: `<DISCORD_GUILD_ID_N>` and `<SERVERN_ROOT_PATH>` (add/remove entries as needed) — the private entry uses `<DISCORD_GUILD_ID_PRIVATO>` and `<PRIVATE_SERVER_ROOT_PATH>`; also `<SERVER_ROOT_PATH>` for `UPDATE_TMP_DIR`.
 - `start_server_template.bat` (only if you use it): `<SERVERN_ROOT_PATH>` — make one copy per server.
 - `start-bot.ps1`: `<BOT_FOLDER_PATH>`.
 - `start_bot.vbs`: `<BOT_FOLDER_PATH>`.
