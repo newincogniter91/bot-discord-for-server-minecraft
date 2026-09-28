@@ -7,7 +7,7 @@ const path = require("path");
 
 module.exports = {
     TOKEN: "<DISCORD_BOT_TOKEN>",
-    OWNER_ID: "<DISCORD_OWNER_ID>",
+    OWNER_ID: "<OWNER_DISCORD_USER_ID>",
 
     // ------------------------------------------------------------
     // MINECRAFT SERVERS
@@ -34,37 +34,40 @@ module.exports = {
     //               inside its own guild — everyone else's messages
     //               are ignored. Use this for a private server.
     //
+    // - dm:         optional, default false. If true, the entry has no
+    //               guild (leave guildId out): it is controlled only by
+    //               OWNER_ID through DMs with the bot, using the
+    //               "priv" commands (!startpriv, !stoppriv, !statuspriv,
+    //               !versionpriv, !ippriv, !updatepriv). Only one entry
+    //               can use this.
+    //
     // Add as many entries as you want; the bot builds one manager and
     // one command set per entry automatically, no other code change
     // needed.
     SERVERS: [
         {
-            key: "server1",
-            label: "Server 1",
-            guildId: "<DISCORD_GUILD_ID_1>",
-            rootDir: "<SERVER1_ROOT_PATH>\\bedrock_server",
+            key: "pubblico1",
+            label: "Public Server 1",
+            guildId: "<GUILD_ID_SERVER_1>",
+            rootDir: "<SERVER_1_ROOT_PATH>",
             port: 19132
         },
+        // To add another public server: copy the block above, change
+        // key, label, guildId, rootDir and port (each port must be unique).
         {
-            key: "server2",
-            label: "Server 2",
-            guildId: "<DISCORD_GUILD_ID_2>",
-            rootDir: "<SERVER2_ROOT_PATH>\\bedrock_server",
-            port: 19133
-        },
-        {
+            // Private server: no Discord guild, controlled only by
+            // OWNER_ID through DMs with the bot (!startpriv, !stoppriv,
+            // !statuspriv, !versionpriv, !ippriv, !updatepriv).
             key: "privato",
-            label: "Privato",
-            guildId: "<DISCORD_GUILD_ID_PRIVATO>",
-            rootDir: "<PRIVATE_SERVER_ROOT_PATH>\\privato",
-            port: 19134,
-            ownerOnly: true
+            label: "private",
+            dm: true,
+            rootDir: "<PRIVATE_SERVER_ROOT_PATH>",
+            port: 19133
         }
-        // , { key: "server4", label: "Server 4", guildId: "<DISCORD_GUILD_ID_4>", rootDir: "<SERVER4_ROOT_PATH>\\bedrock_server", port: 19135 }
     ],
 
     // Temporary working folder for downloads and extraction during updates
-    UPDATE_TMP_DIR: "<SERVER_ROOT_PATH>\\_update_tmp",
+    UPDATE_TMP_DIR: "<UPDATE_TMP_PATH>",
 
     // Files copied from the old version to the new one during an update
     FILES_TO_PRESERVE: [
@@ -90,7 +93,7 @@ module.exports = {
     // server, players need the "Minecraft Preview" app/beta on their
     // client (not the regular Minecraft app) — the two are not
     // cross-compatible with each other's stable counterpart.
-    USE_PREVIEW: false,
+    USE_PREVIEW: true,
 
     // Minutes of inactivity (0 players) before automatic shutdown
     EMPTY_SHUTDOWN_MINUTES: 5,

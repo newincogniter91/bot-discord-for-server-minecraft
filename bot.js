@@ -74,10 +74,10 @@ function saveFullState() {
 // by hand since the last run). Version numbers between the two channels
 // are not directly comparable, so this just flags each server for a
 // forced re-download on the next nightly update pass rather than
-// comparing version strings here.
+// comparing version strings here. Skip inactive servers.
 (function detectChannelSwitch() {
     const wantedMode = USE_PREVIEW ? "preview" : "stable";
-    for (const server of SERVERS) {
+    for (const server of SERVERS.filter(s => !s.inactive)) {
         const key = server.key;
         const installedMode = currentState[key].installedMode;
         if (installedMode && installedMode !== wantedMode) {
@@ -106,17 +106,22 @@ async function handleCrash(name, label) {
 
 const managers = {};
 const serverByGuildId = {};
+let dmServer = null; // server controlled via DM with the owner (config.js "dm: true")
 
 for (const server of SERVERS) {
-    managers[server.key] = new ServerManager({
-        name: server.key,
-        label: server.label,
-        rootDir: server.rootDir,
-        port: server.port,
-        onCrash: handleCrash,
-        onStateChange: persistServerState
-    });
-    serverByGuildId[server.guildId] = server;
+    // Skip inactive servers (not yet available)
+    if (!server.inactive) {
+        managers[server.key] = new ServerManager({
+            name: server.key,
+            label: server.label,
+            rootDir: server.rootDir,
+            port: server.port,
+            onCrash: handleCrash,
+            onStateChange: persistServerState
+        });
+    }
+    if (server.guildId) serverByGuildId[server.guildId] = server;
+    if (server.dm) dmServer = server;
 }
 
 //------------------------------------------------------
@@ -128,25 +133,25 @@ client.on("ready", async () => {
 
     // Reconciliation: find servers already running (started manually
     // in Windows or left running before a bot restart) and adopt them
-    // so status/stop commands work immediately.
+    // so status/stop commands work immediately. Skip inactive servers.
     await reconcileOnStartup(
-        SERVERS.map(server => ({ manager: managers[server.key], rootDir: server.rootDir }))
+        SERVERS.filter(s => !s.inactive).map(server => ({ manager: managers[server.key], rootDir: server.rootDir }))
     );
     saveFullState();
 
-    // Periodically check that adopted processes are still alive
+    // Periodically check that adopted processes are still alive (skip inactive)
     setInterval(() => {
-        for (const server of SERVERS) {
+        for (const server of SERVERS.filter(s => !s.inactive)) {
             managers[server.key].checkAdoptedStillAlive();
         }
     }, 60 * 1000);
 
     // Start the nightly update scheduler (checks daily during the
-    // configured window for a new server version), once per server.
+    // configured window for a new server version), once per active server.
     startUpdateScheduler({
         state: currentState,
         saveState: saveFullState,
-        targets: SERVERS.map(server => ({
+        targets: SERVERS.filter(s => !s.inactive).map(server => ({
             root: server.rootDir,
             manager: managers[server.key],
             key: server.key
@@ -273,10 +278,26 @@ client.on("messageCreate", async msg => {
     // Only respond inside a configured Discord server, and only to
     // the one it is mapped to (see SERVERS in config.js). Messages
     // from unconfigured servers or from DMs are ignored.
-    if (!msg.guild) return;
+    if (!msg.guild) {
+        // DM: private server, owner only, commands with "priv" suffix
+        // (!startpriv, !stoppriv, !statuspriv, !versionpriv, !ippriv, !updatepriv)
+        if (!dmServer || msg.author.id !== OWNER_ID) return;
+        const m = /^!(start|stop|status|version|ip|update)priv$/.exec(msg.content);
+        if (!m) return;
+        msg.content = "!" + m[1];
+        return handleServerCommand(msg, dmServer, managers[dmServer.key]);
+    }
 
     const server = serverByGuildId[msg.guild.id];
     if (!server) return;
+
+    // Skip inactive servers (not yet available)
+    if (server.inactive) {
+        if (msg.author.id === OWNER_ID) {
+            msg.reply(" This server is currently inactive and not available for commands.");
+        }
+        return;
+    }
 
     // A server marked ownerOnly (e.g. a private server) only answers
     // commands from OWNER_ID, even though it lives in its own guild:
